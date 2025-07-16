@@ -36,12 +36,12 @@ try {
     const G = 6.67430e-11;
     const c = 3e8;
     const M = 1e12 * 1.989e30;
-    const SCALE = 1e-6; // 왜곡 효과를 더 눈에 띄게 조정
+    const SCALE = 1e4; // 왜곡 효과를 크게 조정 (픽셀 단위에 맞춤)
     
     // 별 생성 (캔버스 내에서 보장)
     const stars = Array.from({ length: 50 }, () => ({
-        x: Math.random() * (WIDTH - 20) + 10, // 10~790 범위
-        y: Math.random() * (HEIGHT - 20) + 10 // 10~590 범위
+        x: Math.random() * (WIDTH - 20) + 10,
+        y: Math.random() * (HEIGHT - 20) + 10
     }));
     
     // 마우스 위치
@@ -56,11 +56,14 @@ try {
     function calculateDeflectionAngle(x, y, lensX, lensY) {
         const dx = x - lensX;
         const dy = y - lensY;
-        const r = Math.max(Math.sqrt(dx * dx + dy * dy), 10);
+        const r = Math.max(Math.sqrt(dx * dx + dy * dy), 10); // 0 나누기 방지
+        // 아인슈타인 각도: theta = 4GM / (c^2 r)
         const theta = (4 * G * M) / (c * c * r) * SCALE;
+        // 왜곡된 위치 계산 (방향 반대, 질량체 방향으로 끌림)
         const angle = Math.atan2(dy, dx);
-        const newX = x + Math.cos(angle) * theta * r;
-        const newY = y + Math.sin(angle) * theta * r;
+        const newX = x - Math.cos(angle) * theta * r * 100; // 왜곡 강도 증가
+        const newY = y - Math.sin(angle) * theta * r * 100;
+        console.log(`Star: (${x.toFixed(2)}, ${y.toFixed(2)}) -> Distorted: (${newX.toFixed(2)}, ${newY.toFixed(2)})`);
         return { x: newX, y: newY };
     }
     
@@ -76,18 +79,18 @@ try {
         ctx.fill();
         
         // 별 그리기 (왜곡 적용)
-        ctx.fillStyle = 'white';
+        ctx.fillStyle = '#FFFFFF';
         stars.forEach(star => {
             const distorted = calculateDeflectionAngle(star.x, star.y, lensPos.x, lensPos.y);
             ctx.beginPath();
-            ctx.arc(distorted.x, distorted.y, 3, 0, 2 * Math.PI); // 별 크기 증가
+            ctx.arc(distorted.x, distorted.y, 4, 0, 2 * Math.PI); // 별 크기 증가
             ctx.fill();
             // 디버깅: 원래 별 위치 표시 (연한 회색)
             ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
             ctx.beginPath();
             ctx.arc(star.x, star.y, 2, 0, 2 * Math.PI);
             ctx.fill();
-            ctx.fillStyle = 'white'; // 다음 별을 위해 색상 복원
+            ctx.fillStyle = '#FFFFFF'; // 다음 별을 위해 색상 복원
         });
         
         requestAnimationFrame(draw);
@@ -111,5 +114,5 @@ st.markdown("""
 마우스를 캔버스 위에서 움직여 노란색 원(질량체)을 조작하세요. 배경의 별들이 중력렌즈 효과로 왜곡됩니다.
 - 흰색 점: 왜곡된 별 위치
 - 연한 회색 점: 원래 별 위치 (디버깅용)
-만약 캔버스가 보이지 않으면, 브라우저 콘솔(F12)을 열어 오류를 확인해 보세요.
+만약 왜곡이 보이지 않으면, 브라우저 콘솔(F12)을 열어 별의 좌표를 확인해 보세요.
 """)
