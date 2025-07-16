@@ -1,139 +1,124 @@
 import streamlit as st
-import streamlit.components.v1 as components
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.patches import Circle
+from matplotlib.collections import LineCollection
 
-# Streamlit 페이지 설정
-st.title("인터랙티브 중력렌즈 시뮬레이션")
+def calculate_deflection(x, y, bh_x, bh_y, mass, intensity):
+    """중력에 의한 빛의 휨 계산"""
+    dx = bh_x - x
+    dy = bh_y - y
+    distance_sq = dx**2 + dy**2
+    distance = np.sqrt(distance_sq)
+    
+    if distance < mass * 0.6:  # 슈바르츠실트 반경 내부
+        return 0, 0
+    
+    deflection = intensity * mass / (distance_sq + 1e-6)  # 0으로 나누기 방지
+    return dx * deflection, dy * deflection
 
-# JavaScript와 HTML5 Canvas로 중력렌즈 시뮬레이션 구현
-html_code = """
-<style>
-    #lensing-canvas {
-        border: 2px solid #FFD700;
-        background-color: #000;
-    }
-    #error-message {
-        color: red;
-        font-family: Arial, sans-serif;
-    }
-    .info {
-        color: white;
-        font-family: Arial, sans-serif;
-    }
-    #debug-info {
-        color: #00FF00;
-        font-family: Arial, sans-serif;
-    }
-</style>
-<div>
-    <canvas id="lensing-canvas" width="800" height="600"></canvas>
-    <p id="error-message"></p>
-    <p id="debug-info"></p>
-    <p class="info">마우스를 움직여 노란색 원(질량체)을 조작하세요. 흰색 별들이 질량체 주변으로 왜곡됩니다.</p>
-</div>
-<script>
-try {
-    const canvas = document.getElementById('lensing-canvas');
-    const ctx = canvas.getContext('2d');
+def generate_light_ray(start_x, start_y, width, height, bh_x, bh_y, mass, intensity, steps=150):
+    """빛의 경로 생성"""
+    x, y = start_x, start_y
+    ray_path = [(x, y)]
     
-    // 상수
-    const WIDTH = 800;
-    const HEIGHT = 600;
-    const G = 6.67430e-11;
-    const c = 3e8;
-    const M = 1e12 * 1.989e30;
-    const SCALE = 1e8; // 왜곡 효과 크기 조정
+    if start_x == 0:  # 왼쪽에서 오는 빛
+        dx, dy = 3, 0
+    else:  # 위에서 오는 빛
+        dx, dy = 0, 3
     
-    // 별 생성 (캔버스 내에서 보장)
-    const stars = Array.from({ length: 50 }, () => ({
-        x: Math.random() * (WIDTH - 40) + 20,
-        y: Math.random() * (HEIGHT - 40) + 20
-    }));
-    
-    // 마우스 위치
-    let lensPos = { x: WIDTH / 2, y: HEIGHT / 2 };
-    
-    canvas.addEventListener('mousemove', (event) => {
-        const rect = canvas.getBoundingClientRect();
-        lensPos.x = event.clientX - rect.left;
-        lensPos.y = event.clientY - rect.top;
-    });
-    
-    function calculateDeflectionAngle(x, y, lensX, lensY) {
-        const dx = x - lensX;
-        const dy = y - lensY;
-        const r = Math.max(Math.sqrt(dx * dx + dy * dy), 20);
-        const theta = (4 * G * M) / (c * c * r) * SCALE;
-        const angle = Math.atan2(dy, dx);
-        const deflection = theta * r * 500; // 왜곡 거리 증폭
-        let newX = x - Math.cos(angle) * deflection;
-        let newY = y - Math.sin(angle) * deflection;
-        // 캔버스 내로 좌표 제한
-        newX = Math.max(0, Math.min(newX, WIDTH));
-        newY = Math.max(0, Math.min(newY, HEIGHT));
-        console.log(`Star: (${x.toFixed(2)}, ${y.toFixed(2)}) -> Distorted: (${newX.toFixed(2)}, ${newY.toFixed(2)}), theta: ${theta.toFixed(10)}`);
-        return { x: newX, y: newY };
-    }
-    
-    function draw() {
-        // 캔버스 초기화
-        ctx.fillStyle = 'black';
-        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    for _ in range(steps):
+        # 중력 휨 효과 적용
+        deflection_x, deflection_y = calculate_deflection(x, y, bh_x, bh_y, mass, intensity)
+        dx += deflection_x
+        dy += deflection_y
         
-        // 질량체 (노란색 원)
-        ctx.fillStyle = '#FFFF00';
-        ctx.beginPath();
-        ctx.arc(lensPos.x, lensPos.y, 20, 0, 2 * Math.PI);
-        ctx.fill();
+        # 방향 벡터 정규화
+        length = np.sqrt(dx**2 + dy**2)
+        if length > 0:
+            dx = (dx / length) * 3
+            dy = (dy / length) * 3
         
-        // 별 그리기 (왜곡 적용)
-        ctx.fillStyle = '#FFFFFF';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-        stars.forEach(star => {
-            const distorted = calculateDeflectionAngle(star.x, star.y, lensPos.x, lensPos.y);
-            // 왜곡된 별
-            ctx.beginPath();
-            ctx.arc(distorted.x, distorted.y, 5, 0, 2 * Math.PI);
-            ctx.fill();
-            // 디버깅: 원래 별 위치 (연한 회색)
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.beginPath();
-            ctx.arc(star.x, star.y, 2, 0, 2 * Math.PI);
-            ctx.fill();
-            // 곡선 경로 (Quadratic Bezier Curve)
-            ctx.beginPath();
-            ctx.moveTo(star.x, star.y);
-            // 제어점: 렌즈 근처에서 곡선이 더 휘도록
-            const controlX = (star.x + lensPos.x) / 2 + (distorted.x - star.x) * 0.2;
-            const controlY = (star.y + lensPos.y) / 2 + (distorted.y - star.y) * 0.2;
-            ctx.quadraticCurveTo(controlX, controlY, distorted.x, distorted.y);
-            ctx.stroke();
-            ctx.fillStyle = '#FFFFFF'; // 색상 복원
-        });
+        x += dx
+        y += dy
+        ray_path.append((x, y))
         
-        // 디버깅 정보 표시
-        document.getElementById('debug-info').innerText = `Lens Position: (${lensPos.x.toFixed(2)}, ${lensPos.y.toFixed(2)})`;
-        
-        requestAnimationFrame(draw);
-    }
-    
-    draw();
-    console.log("Simulation started with stars:", stars);
-} catch (error) {
-    document.getElementById('error-message').innerText = "Failed to load simulation: " + error.message;
-    console.error("Error:", error);
-}
-</script>
-"""
+        # 화면 밖으로 나가면 중지
+        if x < 0 or x > width or y < 0 or y > height:
+            break
+            
+    return np.array(ray_path)
 
-# Streamlit에서 HTML 렌더링
-components.html(html_code, height=700, width=850)
-
-# 대체 콘텐츠
-st.markdown("""
-### 시뮬레이션 안내
-마우스를 캔버스 위에서 움직여 노란색 원(질량체)을 조작하세요. 흰색 별들이 질량체 주변으로 왜곡됩니다.
-- 흰색 점: 왜곡된 별 위치
-- 연한 회색 점: 원래 별 위치
-- 회색 곡선: 빛의 왜곡 경로 (중력렌즈 효과)
-만약 왜곡이 보이지 않으면, 브라우저 콘솔(F12)을 열어 좌표를 확인하세요.
-""")
+def main():
+    # Streamlit 설정
+    st.set_page_config(
+        page_title="중력 렌즈 시뮬레이터",
+        page_icon="🌌",
+        layout="wide"
+    )
+    
+    # 제목 및 설명
+    st.title("🌠 블랙홀 중력 렌즈 효과 시뮬레이터")
+    st.markdown("""
+    일반 상대성 이론에 따른 블랙홀 주변의 시공간 왜곡을 시뮬레이션합니다. 
+    빛이 블랙홀의 강한 중력장에 의해 어떻게 휘어지는지 관찰해보세요.
+    """)
+    
+    # 컨트롤 패널
+    with st.sidebar:
+        st.header("제어판")
+        mass = st.slider("블랙홀 질량", 30, 150, 80, help="질량이 클수록 중력이 강해집니다")
+        intensity = st.slider("왜곡 강도", 0.5, 5.0, 1.5, 0.1, help="시공간 휨의 강도를 조절합니다")
+        ray_count = st.slider("광선 개수", 5, 30, 12, help="표시할 빛의 경로 수")
+        show_grid = st.checkbox("시공간 그리드 표시", value=True)
+        show_photon = st.checkbox("광자 구 표시", value=True)
+        
+        st.markdown("---")
+        st.header("블랙홀 위치")
+        col1, col2 = st.columns(2)
+        with col1:
+            bh_x = st.slider("X 좌표", 100, 700, 400)
+        with col2:
+            bh_y = st.slider("Y 좌표", 100, 500, 300)
+        
+        st.markdown("---")
+        if st.button("기본값으로 초기화"):
+            st.session_state.mass = 80
+            st.session_state.intensity = 1.5
+            st.session_state.ray_count = 12
+            st.session_state.bh_x = 400
+            st.session_state.bh_y = 300
+    
+    # 시뮬레이션 ��역
+    fig, ax = plt.subplots(figsize=(10, 7))
+    ax.set_xlim(0, 800)
+    ax.set_ylim(0, 600)
+    ax.set_facecolor('#0a0a20')  # 어두운 우주 배경
+    ax.axis('off')
+    
+    # 시공간 그리드 그리기
+    if show_grid:
+        grid_size = 40
+        for x in np.arange(0, 801, grid_size):
+            grid_line = []
+            for y in np.arange(0, 601, 5):
+                def_x, def_y = calculate_deflection(x, y, bh_x, bh_y, mass, intensity)
+                grid_line.append([x + def_x, y + def_y])
+            ax.plot(*zip(*grid_line), color='rgba(100, 200, 255, 0.3)', linewidth=0.8)
+            
+        for y in np.arange(0, 601, grid_size):
+            grid_line = []
+            for x in np.arange(0, 801, 5):
+                def_x, def_y = calculate_deflection(x, y, bh_x, bh_y, mass, intensity)
+                grid_line.append([x + def_x, y + def_y])
+            ax.plot(*zip(*grid_line), color='rgba(100, 200, 255, 0.3)', linewidth=0.8)
+    
+    # 빛의 경로 생성 및 그리기
+    rays = []
+    vertical_spacing = 600 / (ray_count + 1)
+    horizontal_spacing = 800 / (ray_count + 1)
+    
+    for i in range(1, ray_count + 1):
+        # 왼쪽에서 오는 빛
+        ray = generate_light_ray(0, i * vertical_spacing, 800, 600, bh_x, bh_y, mass, intensity)
+        rays.append(ray)
