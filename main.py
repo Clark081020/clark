@@ -5,7 +5,7 @@ from matplotlib.patches import Circle
 from matplotlib.collections import LineCollection
 
 def calculate_deflection(x, y, bh_x, bh_y, mass, intensity):
-    """중력에 의한 빛의 휨 계산"""
+    """중력에 의한 빛의 휨 계산 (반대 방향으로 휨)"""
     dx = bh_x - x
     dy = bh_y - y
     distance_sq = dx**2 + dy**2
@@ -15,7 +15,7 @@ def calculate_deflection(x, y, bh_x, bh_y, mass, intensity):
         return 0, 0
     
     deflection = intensity * mass / (distance_sq + 1e-6)  # 0으로 나누기 방지
-    return dx * deflection, dy * deflection
+    return -dx * deflection, -dy * deflection  # 반대 방향으로 휨
 
 def generate_light_ray(start_x, start_y, width, height, bh_x, bh_y, mass, intensity, steps=150):
     """빛의 경로 생성"""
@@ -60,15 +60,15 @@ def main():
     # 제목 및 설명
     st.title("🌠 블랙홀 중력 렌즈 효과 시뮬레이터")
     st.markdown("""
-    일반 상대성 이론에 따른 블랙홀 주변의 시공간 왜곡을 시뮬레이션합니다. 
-    빛이 블랙홀의 강한 중력장에 의해 어떻게 휘어지는지 관찰해보세요.
+    이 시뮬레이션은 블랙홀 주변의 빛 경로가 반대 방향으로 휘는 가상의 효과를 보여줍니다. 
+    빛이 블랙홀을 피해 바깥쪽으로 휘어지는 모습을 관찰해보세요.
     """)
     
     # 컨트롤 패널
     with st.sidebar:
         st.header("제어판")
-        mass = st.slider("블랙홀 질량", 30, 150, 80, help="질량이 클수록 중력이 강해집니다")
-        intensity = st.slider("왜곡 강도", 0.5, 5.0, 1.5, 0.1, help="시공간 휨의 강도를 조절합니다")
+        mass = st.slider("블랙홀 질량", 30, 150, 80, help="질량이 클수록 휨 효과가 강해집니다")
+        intensity = st.slider("왜곡 강도", 0.5, 5.0, 1.5, 0.1, help="빛의 휨 강도를 조절합니다")
         ray_count = st.slider("광선 개수", 5, 30, 12, help="표시할 빛의 경로 수")
         show_grid = st.checkbox("시공간 그리드 표시", value=True)
         show_photon = st.checkbox("광자 구 표시", value=True)
@@ -89,7 +89,7 @@ def main():
             st.session_state.bh_x = 400
             st.session_state.bh_y = 300
     
-    # 시뮬레이션 ��역
+    # 시뮬레이션 영역
     fig, ax = plt.subplots(figsize=(10, 7))
     ax.set_xlim(0, 800)
     ax.set_ylim(0, 600)
@@ -122,3 +122,23 @@ def main():
         # 왼쪽에서 오는 빛
         ray = generate_light_ray(0, i * vertical_spacing, 800, 600, bh_x, bh_y, mass, intensity)
         rays.append(ray)
+        # 위에서 오는 빛
+        ray = generate_light_ray(i * horizontal_spacing, 0, 800, 600, bh_x, bh_y, mass, intensity)
+        rays.append(ray)
+    
+    # 빛 경로 그리기
+    line_collection = LineCollection(rays, colors='white', linewidths=1.0)
+    ax.add_collection(line_collection)
+    
+    # 블랙홀 (검은 원) 및 광자 구 그리기
+    black_hole = Circle((bh_x, bh_y), mass * 0.6, color='black')
+    ax.add_patch(black_hole)
+    if show_photon:
+        photon_sphere = Circle((bh_x, bh_y), mass * 0.9, color='yellow', fill=False, linestyle='--')
+        ax.add_patch(photon_sphere)
+    
+    # Matplotlib 그래프를 Streamlit에 표시
+    st.pyplot(fig)
+
+if __name__ == "__main__":
+    main()
