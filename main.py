@@ -19,11 +19,16 @@ html_code = """
         color: white;
         font-family: Arial, sans-serif;
     }
+    #debug-info {
+        color: #00FF00;
+        font-family: Arial, sans-serif;
+    }
 </style>
 <div>
     <canvas id="lensing-canvas" width="800" height="600"></canvas>
     <p id="error-message"></p>
-    <p class="info">마우스를 움직여 노란색 원(질량체)을 조작하세요. 배경의 별들이 중력렌즈 효과로 왜곡됩니다.</p>
+    <p id="debug-info"></p>
+    <p class="info">마우스를 움직여 노란색 원(질량체)을 조작하세요. 흰색 별들이 질량체 주변으로 왜곡됩니다.</p>
 </div>
 <script>
 try {
@@ -36,12 +41,12 @@ try {
     const G = 6.67430e-11;
     const c = 3e8;
     const M = 1e12 * 1.989e30;
-    const SCALE = 1e4; // 왜곡 효과를 크게 조정 (픽셀 단위에 맞춤)
+    const SCALE = 1e8; // 왜곡 효과 극대화
     
     // 별 생성 (캔버스 내에서 보장)
     const stars = Array.from({ length: 50 }, () => ({
-        x: Math.random() * (WIDTH - 20) + 10,
-        y: Math.random() * (HEIGHT - 20) + 10
+        x: Math.random() * (WIDTH - 40) + 20,
+        y: Math.random() * (HEIGHT - 40) + 20
     }));
     
     // 마우스 위치
@@ -56,14 +61,17 @@ try {
     function calculateDeflectionAngle(x, y, lensX, lensY) {
         const dx = x - lensX;
         const dy = y - lensY;
-        const r = Math.max(Math.sqrt(dx * dx + dy * dy), 10); // 0 나누기 방지
-        // 아인슈타인 각도: theta = 4GM / (c^2 r)
+        const r = Math.max(Math.sqrt(dx * dx + dy *遵িদ * dy * dy), 20); // 최소 거리 증가
         const theta = (4 * G * M) / (c * c * r) * SCALE;
-        // 왜곡된 위치 계산 (방향 반대, 질량체 방향으로 끌림)
         const angle = Math.atan2(dy, dx);
-        const newX = x - Math.cos(angle) * theta * r * 100; // 왜곡 강도 증가
-        const newY = y - Math.sin(angle) * theta * r * 100;
-        console.log(`Star: (${x.toFixed(2)}, ${y.toFixed(2)}) -> Distorted: (${newX.toFixed(2)}, ${newY.toFixed(2)})`);
+        // 질량체 방향으로 끌리도록 왜곡 계산
+        const deflection = theta * r * 500; // 왜곡 거리 증폭
+        let newX = x - Math.cos(angle) * deflection;
+        let newY = y - Math.sin(angle) * deflection;
+        // 캔버스 내로 좌표 제한
+        newX = Math.max(0, Math.min(newX, WIDTH));
+        newY = Math.max(0, Math.min(newY, HEIGHT));
+        console.log(`Star: (${x.toFixed(2)}, ${y.toFixed(2)}) -> Distorted: (${newX.toFixed(2)}, ${newY.toFixed(2)}), theta: ${theta.toFixed(10)}`);
         return { x: newX, y: newY };
     }
     
@@ -80,18 +88,28 @@ try {
         
         // 별 그리기 (왜곡 적용)
         ctx.fillStyle = '#FFFFFF';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
         stars.forEach(star => {
             const distorted = calculateDeflectionAngle(star.x, star.y, lensPos.x, lensPos.y);
+            // 왜곡된 별
             ctx.beginPath();
-            ctx.arc(distorted.x, distorted.y, 4, 0, 2 * Math.PI); // 별 크기 증가
+            ctx.arc(distorted.x, distorted.y, 5, 0, 2 * Math.PI); // 별 크기 증가
             ctx.fill();
-            // 디버깅: 원래 별 위치 표시 (연한 회색)
+            // 디버깅: 원래 별 위치 (연한 회색)
             ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
             ctx.beginPath();
             ctx.arc(star.x, star.y, 2, 0, 2 * Math.PI);
             ctx.fill();
-            ctx.fillStyle = '#FFFFFF'; // 다음 별을 위해 색상 복원
+            // 왜곡 경로 선
+            ctx.beginPath();
+            ctx.moveTo(star.x, star.y);
+            ctx.lineTo(distorted.x, distorted.y);
+            ctx.stroke();
+            ctx.fillStyle = '#FFFFFF'; // 색상 복원
         });
+        
+        // 디버깅 정보 표시
+        document.getElementById('debug-info').innerText = `Lens Position: (${lensPos.x.toFixed(2)}, ${lensPos.y.toFixed(2)})`;
         
         requestAnimationFrame(draw);
     }
@@ -111,8 +129,9 @@ components.html(html_code, height=700, width=850)
 # 대체 콘텐츠
 st.markdown("""
 ### 시뮬레이션 안내
-마우스를 캔버스 위에서 움직여 노란색 원(질량체)을 조작하세요. 배경의 별들이 중력렌즈 효과로 왜곡됩니다.
+마우스를 캔버스 위에서 움직여 노란색 원(질량체)을 조작하세요. 흰색 별들이 질량체 주변으로 왜곡됩니다.
 - 흰색 점: 왜곡된 별 위치
-- 연한 회색 점: 원래 별 위치 (디버깅용)
-만약 왜곡이 보이지 않으면, 브라우저 콘솔(F12)을 열어 별의 좌표를 확인해 보세요.
+- 연한 회색 점: 원래 별 위치
+- 회색 선: 왜곡 경로
+만약 왜곡이 보이지 않으면, 브라우저 콘솔(F12)을 열어 좌표를 확인하세요.
 """)
