@@ -1,14 +1,3 @@
-대화를 열었습니다. 읽지 않은 메일이 1개 있습니다.
-
-콘텐츠로 건너뛰기
-스크린 리더로 Gmail 사용하기
-134개 중 1개
-code
-받은편지함
-
-임은찬 <limec3629@gmail.com>
-오전 11:28 (1분 전)
-나에게
 
 import streamlit as st
 import numpy as np
