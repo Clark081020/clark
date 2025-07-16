@@ -99,12 +99,12 @@ try {
             ctx.beginPath();
             ctx.arc(star.x, star.y, 2, 0, 2 * Math.PI);
             ctx.fill();
-            // 곡선 경로 (Quadratic Bezier Curve)
+            // 곡선 경로 (Quadratic Bezier Curve, 반대 방향으로 휘도록)
             ctx.beginPath();
             ctx.moveTo(star.x, star.y);
-            // 제어점: 렌즈 근처에서 곡선이 더 휘도록
-            const controlX = (star.x + lensPos.x) / 2 + (distorted.x - star.x) * 0.2;
-            const controlY = (star.y + lensPos.y) / 2 + (distorted.y - star.y) * 0.2;
+            // 제어점: 렌즈 근처에서 곡선이 반대 방향으로 휘도록
+            const controlX = (star.x + lensPos.x) / 2 - (distorted.x - star.x) * 0.2;
+            const controlY = (star.y + lensPos.y) / 2 - (distorted.y - star.y) * 0.2;
             ctx.quadraticCurveTo(controlX, controlY, distorted.x, distorted.y);
             ctx.stroke();
             ctx.fillStyle = '#FFFFFF'; // 색상 복원
@@ -134,6 +134,6 @@ st.markdown("""
 마우스를 캔버스 위에서 움직여 노란색 원(질량체)을 조작하세요. 흰색 별들이 질량체 주변으로 왜곡됩니다.
 - 흰색 점: 왜곡된 별 위치
 - 연한 회색 점: 원래 별 위치
-- 회색 곡선: 빛의 왜곡 경로 (중력렌즈 효과)
+- 회색 곡선: 빛의 왜곡 경로 (중력렌즈 효과, 반대 방향으로 휨)
 만약 왜곡이 보이지 않으면, 브라우저 콘솔(F12)을 열어 좌표를 확인하세요.
 """)
