@@ -104,14 +104,14 @@ def main():
             for y in np.arange(0, 601, 5):
                 def_x, def_y = calculate_deflection(x, y, bh_x, bh_y, mass, intensity)
                 grid_line.append([x + def_x, y + def_y])
-            ax.plot(*zip(*grid_line), color='rgba(100, 200, 255, 0.3)', linewidth=0.8)
+            ax.plot(*zip(*grid_line), color=(100/255, 200/255, 255/255, 0.3), linewidth=0.8)
             
         for y in np.arange(0, 601, grid_size):
             grid_line = []
             for x in np.arange(0, 801, 5):
                 def_x, def_y = calculate_deflection(x, y, bh_x, bh_y, mass, intensity)
                 grid_line.append([x + def_x, y + def_y])
-            ax.plot(*zip(*grid_line), color='rgba(100, 200, 255, 0.3)', linewidth=0.8)
+            ax.plot(*zip(*grid_line), color=(100/255, 200/255, 255/255, 0.3), linewidth=0.8)
     
     # 빛의 경로 생성 및 그리기
     rays = []
