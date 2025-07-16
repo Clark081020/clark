@@ -1,70 +1,118 @@
-import pygame
-import math
+import streamlit as st
+import streamlit.components.v1 as components
 
-# 초기화
-pygame.init()
-screen = pygame.display.set_mode((800, 600))
-pygame.display.set_caption("중력렌즈 효과 시뮬레이션")
-clock = pygame.time.Clock()
+# Streamlit 페이지 설정
+st.title("인터랙티브 중력렌즈 시뮬레이션")
 
-# 색상 정의
-WHITE = (255, 255, 255)
-BLUE = (100, 100, 255)
-RED = (255, 50, 50)
-YELLOW = (255, 255, 100)
-BLACK = (0, 0, 0)
+# JavaScript와 HTML5 Canvas로 중력렌즈 시뮬레이션 구현
+html_code = """
+<style>
+    #lensing-canvas {
+        border: 2px solid #FFD700;
+        background-color: #000;
+    }
+    #error-message {
+        color: red;
+        font-family: Arial, sans-serif;
+    }
+    .info {
+        color: white;
+        font-family: Arial, sans-serif;
+    }
+</style>
+<div>
+    <canvas id="lensing-canvas" width="800" height="600"></canvas>
+    <p id="error-message"></p>
+    <p class="info">마우스를 움직여 노란색 원(질량체)을 조작하세요. 배경의 별들이 중력렌즈 효과로 왜곡됩니다.</p>
+</div>
+<script>
+try {
+    const canvas = document.getElementById('lensing-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // 상수
+    const WIDTH = 800;
+    const HEIGHT = 600;
+    const G = 6.67430e-11;
+    const c = 3e8;
+    const M = 1e12 * 1.989e30;
+    const SCALE = 1e4; // 왜곡 효과를 크게 조정 (픽셀 단위에 맞춤)
+    
+    // 별 생성 (캔버스 내에서 보장)
+    const stars = Array.from({ length: 50 }, () => ({
+        x: Math.random() * (WIDTH - 20) + 10,
+        y: Math.random() * (HEIGHT - 20) + 10
+    }));
+    
+    // 마우스 위치
+    let lensPos = { x: WIDTH / 2, y: HEIGHT / 2 };
+    
+    canvas.addEventListener('mousemove', (event) => {
+        const rect = canvas.getBoundingClientRect();
+        lensPos.x = event.clientX - rect.left;
+        lensPos.y = event.clientY - rect.top;
+    });
+    
+    function calculateDeflectionAngle(x, y, lensX, lensY) {
+        const dx = x - lensX;
+        const dy = y - lensY;
+        const r = Math.max(Math.sqrt(dx * dx + dy * dy), 10); // 0 나누기 방지
+        // 아인슈타인 각도: theta = 4GM / (c^2 r)
+        const theta = (4 * G * M) / (c * c * r) * SCALE;
+        // 왜곡된 위치 계산 (방향 반대, 질량체 방향으로 끌림)
+        const angle = Math.atan2(dy, dx);
+        const newX = x - Math.cos(angle) * theta * r * 100; // 왜곡 강도 증가
+        const newY = y - Math.sin(angle) * theta * r * 100;
+        console.log(`Star: (${x.toFixed(2)}, ${y.toFixed(2)}) -> Distorted: (${newX.toFixed(2)}, ${newY.toFixed(2)})`);
+        return { x: newX, y: newY };
+    }
+    
+    function draw() {
+        // 캔버스 초기화
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        
+        // 질량체 (노란색 원)
+        ctx.fillStyle = '#FFFF00';
+        ctx.beginPath();
+        ctx.arc(lensPos.x, lensPos.y, 20, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // 별 그리기 (왜곡 적용)
+        ctx.fillStyle = '#FFFFFF';
+        stars.forEach(star => {
+            const distorted = calculateDeflectionAngle(star.x, star.y, lensPos.x, lensPos.y);
+            ctx.beginPath();
+            ctx.arc(distorted.x, distorted.y, 4, 0, 2 * Math.PI); // 별 크기 증가
+            ctx.fill();
+            // 디버깅: 원래 별 위치 표시 (연한 회색)
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath();
+            ctx.arc(star.x, star.y, 2, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillStyle = '#FFFFFF'; // 다음 별을 위해 색상 복원
+        });
+        
+        requestAnimationFrame(draw);
+    }
+    
+    draw();
+    console.log("Simulation started with stars:", stars);
+} catch (error) {
+    document.getElementById('error-message').innerText = "Failed to load simulation: " + error.message;
+    console.error("Error:", error);
+}
+</script>
+"""
 
-# 고정된 위치
-earth_pos = (700, 300)       # 지구 (관측자)
-blackhole_pos = (400, 300)   # 블랙홀 (중력렌즈 중심)
+# Streamlit에서 HTML 렌더링
+components.html(html_code, height=700, width=850)
 
-# 빛 경로 계산 함수
-def get_light_path(source, lens, observer, segments=50):
-    path = []
-    for i in range(segments + 1):
-        t = i / segments
-        # 직선 좌표
-        x = (1 - t) * source[0] + t * observer[0]
-        y = (1 - t) * source[1] + t * observer[1]
-
-        # 블랙홀 중심으로 휘어지게 하기 위한 계산
-        dx = x - lens[0]
-        dy = y - lens[1]
-        dist_sq = dx ** 2 + dy ** 2
-        strength = 50000 / (dist_sq + 1000)  # 휘어짐 강도 조절
-
-        # 방향 회전하여 경로 왜곡
-        x += -dy * strength * 0.001
-        y += dx * strength * 0.001
-
-        path.append((x, y))
-    return path
-
-# 메인 루프
-running = True
-while running:
-    screen.fill((10, 10, 30))  # 어두운 배경
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-
-    # 마우스 위치 → 행성
-    planet_pos = pygame.mouse.get_pos()
-
-    # 빛 경로 계산
-    light_path = get_light_path(planet_pos, blackhole_pos, earth_pos)
-
-    # 객체 그리기
-    pygame.draw.circle(screen, BLUE, earth_pos, 10)       # 지구
-    pygame.draw.circle(screen, RED, blackhole_pos, 20)    # 블랙홀
-    pygame.draw.circle(screen, YELLOW, planet_pos, 8)     # 행성 (광원)
-
-    # 빛 경로 그리기 (곡선처럼 보임)
-    if len(light_path) > 1:
-        pygame.draw.lines(screen, WHITE, False, light_path, 2)
-
-    pygame.display.flip()
-    clock.tick(60)
-
-pygame.quit()
+# 대체 콘텐츠
+st.markdown("""
+### 시뮬레이션 안내
+마우스를 캔버스 위에서 움직여 노란색 원(질량체)을 조작하세요. 배경의 별들이 중력렌즈 효과로 왜곡됩니다.
+- 흰색 점: 왜곡된 별 위치
+- 연한 회색 점: 원래 별 위치 (디버깅용)
+만약 왜곡이 보이지 않으면, 브라우저 콘솔(F12)을 열어 별의 좌표를 확인해 보세요.
+""")
