@@ -1,107 +1,139 @@
-
 import streamlit as st
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.patches import Circle
-from matplotlib.collections import LineCollection
+import streamlit.components.v1 as components
 
-def calculate_deflection(x, y, bh_x, bh_y, mass, intensity):
-    dx = bh_x - x
-    dy = bh_y - y
-    distance_sq = dx**2 + dy**2
-    distance = np.sqrt(distance_sq)
-    
-    if distance < mass * 0.6:  # Schwarzschild radius
-        return 0, 0
-    
-    deflection = intensity * mass / distance_sq
-    return dx * deflection, dy * deflection
+# Streamlit 페이지 설정
+st.title("인터랙티브 중력렌즈 시뮬레이션")
 
-def generate_light_ray(start_x, start_y, width, height, bh_x, bh_y, mass, intensity, steps=150):
-    x, y = start_x, start_y
-    ray_path = [(x, y)]
+# JavaScript와 HTML5 Canvas로 중력렌즈 시뮬레이션 구현
+html_code = """
+<style>
+    #lensing-canvas {
+        border: 2px solid #FFD700;
+        background-color: #000;
+    }
+    #error-message {
+        color: red;
+        font-family: Arial, sans-serif;
+    }
+    .info {
+        color: white;
+        font-family: Arial, sans-serif;
+    }
+    #debug-info {
+        color: #00FF00;
+        font-family: Arial, sans-serif;
+    }
+</style>
+<div>
+    <canvas id="lensing-canvas" width="800" height="600"></canvas>
+    <p id="error-message"></p>
+    <p id="debug-info"></p>
+    <p class="info">마우스를 움직여 노란색 원(질량체)을 조작하세요. 흰색 별들이 질량체 주변으로 왜곡됩니다.</p>
+</div>
+<script>
+try {
+    const canvas = document.getElementById('lensing-canvas');
+    const ctx = canvas.getContext('2d');
     
-    if start_x == 0:  # Coming from left
-        dx, dy = 5, 0
-    else:  # Coming from top
-        dx, dy = 0, 5
+    // 상수
+    const WIDTH = 800;
+    const HEIGHT = 600;
+    const G = 6.67430e-11;
+    const c = 3e8;
+    const M = 1e12 * 1.989e30;
+    const SCALE = 1e8; // 왜곡 효과 크기 조정
     
-    for _ in range(steps):
-        deflection_x, deflection_y = calculate_deflection(x, y, bh_x, bh_y, mass, intensity)
-        dx += deflection_x
-        dy += deflection_y
+    // 별 생성 (캔버스 내에서 보장)
+    const stars = Array.from({ length: 50 }, () => ({
+        x: Math.random() * (WIDTH - 40) + 20,
+        y: Math.random() * (HEIGHT - 40) + 20
+    }));
+    
+    // 마우스 위치
+    let lensPos = { x: WIDTH / 2, y: HEIGHT / 2 };
+    
+    canvas.addEventListener('mousemove', (event) => {
+        const rect = canvas.getBoundingClientRect();
+        lensPos.x = event.clientX - rect.left;
+        lensPos.y = event.clientY - rect.top;
+    });
+    
+    function calculateDeflectionAngle(x, y, lensX, lensY) {
+        const dx = x - lensX;
+        const dy = y - lensY;
+        const r = Math.max(Math.sqrt(dx * dx + dy * dy), 20);
+        const theta = (4 * G * M) / (c * c * r) * SCALE;
+        const angle = Math.atan2(dy, dx);
+        const deflection = theta * r * 500; // 왜곡 거리 증폭
+        let newX = x - Math.cos(angle) * deflection;
+        let newY = y - Math.sin(angle) * deflection;
+        // 캔버스 내로 좌표 제한
+        newX = Math.max(0, Math.min(newX, WIDTH));
+        newY = Math.max(0, Math.min(newY, HEIGHT));
+        console.log(`Star: (${x.toFixed(2)}, ${y.toFixed(2)}) -> Distorted: (${newX.toFixed(2)}, ${newY.toFixed(2)}), theta: ${theta.toFixed(10)}`);
+        return { x: newX, y: newY };
+    }
+    
+    function draw() {
+        // 캔버스 초기화
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
         
-        # Normalize direction
-        length = np.sqrt(dx**2 + dy**2)
-        dx = (dx / length) * 5
-        dy = (dy / length) * 5
+        // 질량체 (노란색 원)
+        ctx.fillStyle = '#FFFF00';
+        ctx.beginPath();
+        ctx.arc(lensPos.x, lensPos.y, 20, 0, 2 * Math.PI);
+        ctx.fill();
         
-        x += dx
-        y += dy
-        ray_path.append((x, y))
+        // 별 그리기 (왜곡 적용)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        stars.forEach(star => {
+            const distorted = calculateDeflectionAngle(star.x, star.y, lensPos.x, lensPos.y);
+            // 왜곡된 별
+            ctx.beginPath();
+            ctx.arc(distorted.x, distorted.y, 5, 0, 2 * Math.PI);
+            ctx.fill();
+            // 디버깅: 원래 별 위치 (연한 회색)
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath();
+            ctx.arc(star.x, star.y, 2, 0, 2 * Math.PI);
+            ctx.fill();
+            // 곡선 경로 (Quadratic Bezier Curve, 반대 방향으로 휘도록)
+            ctx.beginPath();
+            ctx.moveTo(star.x, star.y);
+            // 제어점: 렌즈 반대쪽으로 곡선이 휘도록
+            const controlX = star.x + (star.x - lensPos.x) * 0.3;
+            const controlY = star.y + (star.y - lensPos.y) * 0.3;
+            ctx.quadraticCurveTo(controlX, controlY, distorted.x, distorted.y);
+            ctx.stroke();
+            ctx.fillStyle = '#FFFFFF'; // 색상 복원
+        });
         
-        if x < 0 or x > width or y < 0 or y > height:
-            break
-            
-    return np.array(ray_path)
+        // 디버깅 정보 표시
+        document.getElementById('debug-info').innerText = `Lens Position: (${lensPos.x.toFixed(2)}, ${lensPos.y.toFixed(2)})`;
+        
+        requestAnimationFrame(draw);
+    }
+    
+    draw();
+    console.log("Simulation started with stars:", stars);
+} catch (error) {
+    document.getElementById('error-message').innerText = "Failed to load simulation: " + error.message;
+    console.error("Error:", error);
+}
+</script>
+"""
 
-def main():
-    st.set_page_config(page_title="Gravity Lens Simulator", layout="wide")
-    st.title("🌌 Black Hole Gravitational Lensing")
-    
-    col1, col2 = st.columns([1, 3])
-    
-    with col1:
-        st.header("Controls")
-        mass = st.slider("Black Hole Mass", 30, 120, 80)
-        intensity = st.slider("Warp Intensity", 0.5, 3.0, 1.5, 0.1)
-        ray_count = st.slider("Light Rays", 5, 30, 12)
-        show_grid = st.checkbox("Show Spacetime Grid", value=True)
-        show_photon = st.checkbox("Show Photon Sphere", value=True)
-        bh_x = st.slider("Black Hole X", 100, 700, 400)
-        bh_y = st.slider("Black Hole Y", 100, 500, 300)
-        
-    with col2:
-        st.header("Simulation")
-        
-        # Create figure
-        fig, ax = plt.subplots(figsize=(10, 8))
-        ax.set_xlim(0, 800)
-        ax.set_ylim(0, 600)
-        ax.set_facecolor('#0a0a20')
-        ax.axis('off')
-        
-        # Draw spacetime grid
-        if show_grid:
-            grid_size = 40
-            for x in np.arange(0, 801, grid_size):
-                grid_line = []
-                for y in np.arange(0, 601, 5):
-                    def_x, def_y = calculate_deflection(x, y, bh_x, bh_y, mass, intensity)
-                    grid_line.append([x + def_x, y + def_y])
-                ax.plot(*zip(*grid_line), color='rgba(100, 200, 255, 0.3)', linewidth=1)
-                
-            for y in np.arange(0, 601, grid_size):
-                grid_line = []
-                for x in np.arange(0, 801, 5):
-                    def_x, def_y = calculate_deflection(x, y, bh_x, bh_y, mass, intensity)
-                    grid_line.append([x + def_x, y + def_y])
-                ax.plot(*zip(*grid_line), color='rgba(100, 200, 255, 0.3)', linewidth=1)
-        
-        # Draw light rays
-        vertical_spacing = 600 / (ray_count + 1)
-        horizontal_spacing = 800 / (ray_count + 1)
-        
-        rays = []
-        for i in range(1, ray_count + 1):
-            # Rays from left
-            ray = generate_light_ray(0, i * vertical_spacing, 800, 600, bh_x, bh_y, mass, intensity)
-            rays.append(ray)
-            
-            # Rays from top
-            ray = generate_light_ray(i * horizontal_spacing, 0, 800, 600, bh_x, bh_y, mass, intensity)
-            rays.append(ray)
-        
-        # Create line collection for better performance
-        lc = LineCollection(rays, colors='yellow', alpha=0.6, linewidths=1.5)
-        ax.add_collection(lc)
+# Streamlit에서 HTML 렌더링
+components.html(html_code, height=700, width=850)
+
+# 대체 콘텐츠
+st.markdown("""
+### 시뮬레이션 안내
+마우스를 캔버스 위에서 움직여 노란색 원(질량체)을 조작하세요. 흰색 별들이 질량체 주변으로 왜곡됩니다.
+- 흰색 점: 왜곡된 별 위치
+- 연한 회색 점: 원래 별 위치
+- 회색 곡선: 빛의 왜곡 경로 (질량체 반대 방향으로 휨)
+만약 왜곡이 보이지 않으면, 브라우저 콘솔(F12)을 열어 좌표를 확인하세요.
+""")
