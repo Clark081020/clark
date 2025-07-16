@@ -41,7 +41,7 @@ try {
     const G = 6.67430e-11;
     const c = 3e8;
     const M = 1e12 * 1.989e30;
-    const SCALE = 1e8; // 왜곡 효과 극대화
+    const SCALE = 1e8; // 왜곡 효과 크기 조정
     
     // 별 생성 (캔버스 내에서 보장)
     const stars = Array.from({ length: 50 }, () => ({
@@ -61,10 +61,9 @@ try {
     function calculateDeflectionAngle(x, y, lensX, lensY) {
         const dx = x - lensX;
         const dy = y - lensY;
-        const r = Math.max(Math.sqrt(dx * dx + dy *遵িদ * dy * dy), 20); // 최소 거리 증가
+        const r = Math.max(Math.sqrt(dx * dx + dy * dy), 20); // 오타 수정
         const theta = (4 * G * M) / (c * c * r) * SCALE;
         const angle = Math.atan2(dy, dx);
-        // 질량체 방향으로 끌리도록 왜곡 계산
         const deflection = theta * r * 500; // 왜곡 거리 증폭
         let newX = x - Math.cos(angle) * deflection;
         let newY = y - Math.sin(angle) * deflection;
@@ -93,7 +92,7 @@ try {
             const distorted = calculateDeflectionAngle(star.x, star.y, lensPos.x, lensPos.y);
             // 왜곡된 별
             ctx.beginPath();
-            ctx.arc(distorted.x, distorted.y, 5, 0, 2 * Math.PI); // 별 크기 증가
+            ctx.arc(distorted.x, distorted.y, 5, 0, 2 * Math.PI);
             ctx.fill();
             // 디버깅: 원래 별 위치 (연한 회색)
             ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
