@@ -51,14 +51,14 @@ try {{
     
     // 별 생성 (원형 + 무작위 분포)
     const stars = Array.from({{ length: 300 }}, () => {{
-        const isRing = Math.random() < 0.9; // 90% 원형 분포
+        const isRing = Math.random() < 0.9;
         if (isRing) {{
             const angle = Math.random() * 2 * Math.PI;
-            const radius = Math.random() * 70 + 30; // 30~100px
+            const radius = Math.random() * 70 + 30;
             return {{
                 x: WIDTH / 2 + Math.cos(angle) * radius,
                 y: HEIGHT / 2 + Math.sin(angle) * radius,
-                size: Math.random() * 2 + 3 // 3~5px
+                size: Math.random() * 2 + 3
             }};
         }} else {{
             return {{
@@ -82,60 +82,51 @@ try {{
         const dx = x - lensX;
         const dy = y - lensY;
         const r = Math.max(Math.sqrt(dx * dx + dy * dy), 20);
-        // 아인슈타인 반경
         const theta_E = Math.sqrt((4 * G * M / (c * c)) * (D_LS / (D_L * D_S))) * 1e14;
-        // 렌즈 방정식
         const theta = r / 50;
         const beta = Math.abs(theta - (theta_E * theta_E) / (theta || 0.01));
         const angle = Math.atan2(dy, dx);
-        // 왜곡된 위치
         const newX = lensX + Math.cos(angle) * beta * 150;
         const newY = lensY + Math.sin(angle) * beta * 150;
-        // �amp;버스 내로 좌표 제한
         const clampedX = Math.max(0, Math.min(newX, WIDTH));
-        const clampedY = Math.max(0, Math.min(newY, HEIGHT fietsen));
-        console.log(`Star: (${x.toFixed(2)}, ${y.toFixed(2)}) -> Distorted: (${clampedX.toFixed(2)}, ${clampedY.toFixed(2)}), Beta: ${beta.toFixed(10)}`);
-        return { x: clampedX, y: clampedY };
-    }
+        const clampedY = Math.max(0, Math.min(newY, HEIGHT));
+        console.log(`Star: (${{x.toFixed(2)}}, ${{y.toFixed(2)}}) -> Distorted: (${{clampedX.toFixed(2)}}, ${{clampedY.toFixed(2)}}), Beta: ${{beta.toFixed(10)}}`);
+        return {{ x: clampedX, y: clampedY }};
+    }}
     
-    function draw() {
-        // 캔버스 초기화
+    function draw() {{
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, WIDTH, HEIGHT);
         
-        // 별 그리기 (왜곡 적용)
         ctx.fillStyle = '#FFFFFF';
-        stars.forEach(star => {
+        stars.forEach(star => {{
             const distorted = calculateDeflectionAngle(star.x, star.y, lensPos.x, lensPos.y);
             ctx.beginPath();
             ctx.arc(distorted.x, distorted.y, star.size, 0, 2 * Math.PI);
             ctx.fill();
-            // 디버깅: 원래 별 위치 (연한 회색)
             ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
             ctx.beginPath();
             ctx.arc(star.x, star.y, 1, 0, 2 * Math.PI);
             ctx.fill();
             ctx.fillStyle = '#FFFFFF';
-        });
+        }});
         
-        // 질량체 (노란색 원)
         ctx.fillStyle = '#FFFF00';
         ctx.beginPath();
         ctx.arc(lensPos.x, lensPos.y, 10, 0, 2 * Math.PI);
         ctx.fill();
         
-        // 디버깅 정보 표시
-        document.getElementById('debug-info').innerText = `Lens Position: (${lensPos.x.toFixed(2)}, ${lensPos.y.toFixed(2)}), Mass: ${MASS_SCALE.toFixed(1)}x10^12 M☉, Stars: ${stars.length}`;
+        document.getElementById('debug-info').innerText = `Lens Position: (${{lensPos.x.toFixed(2)}}, ${{lensPos.y.toFixed(2)}}), Mass: ${{MASS_SCALE.toFixed(1)}}x10^12 M☉, Stars: ${{stars.length}}`;
         
         requestAnimationFrame(draw);
-    }
+    }}
     
     draw();
     console.log("Simulation started with stars:", stars);
-} catch (error) {
+}} catch (error) {{
     document.getElementById('error-message').innerText = "Failed to load simulation: " + error.message;
     console.error("Error:", error);
-}
+}}
 </script>
 """
 
@@ -145,7 +136,7 @@ components.html(html_code, height=700, width=850)
 # 대체 콘텐츠
 st.markdown("""
 ### 시뮬레이션 안내
-마우스를 움직여 노란색 원(질량체)을 조작하고, 슬라이더로 질량을 조절하세요. 300개의 큰 흰색 별들이 아인蜀타인 링/아크 형태로 왜곡됩니다.
+마우스를 움직여 노란색 원(질량체)을 조작하고, 슬라이더로 질량을 조절하세요. 300개의 큰 흰색 별들이 아인슈타인 링/아크 형태로 왜곡됩니다.
 - 흰색 점: 왜곡된 별 위치 (3~5px)
 - 연한 회색 점: 원래 별 위치 (디버깅용)
 만약 별이 보이지 않으면, 브라우저 콘솔(F12)을 열어 좌표와 Beta 값을 확인하세요.
