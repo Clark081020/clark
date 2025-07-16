@@ -44,20 +44,21 @@ try {{
     const G = 6.67430e-11;
     const c = 3e8;
     const M = {mass_scale} * 1e12 * 1.989e30;
-    const D_LS = 1e25; // 렌즈-소스 거리
-    const D_L = 1e24;  // 관측자-렌즈 거리
-    const D_S = 2e25;  // 관측자-소스 거리
+    const D_LS = 1e25;
+    const D_L = 1e24;
+    const D_S = 2e25;
+    const MASS_SCALE = {mass_scale}; // JavaScript용 질량 변수
     
     // 별 생성 (원형 + 무작위 분포)
     const stars = Array.from({{ length: 300 }}, () => {{
-        const isRing = Math.random() < 0.6; // 60%는 링 근처, 40%는 무작위
+        const isRing = Math.random() < 0.7; // 70% 원형 분포
         if (isRing) {{
             const angle = Math.random() * 2 * Math.PI;
-            const radius = Math.random() * 100 + 50; // 50~150px
+            const radius = Math.random() * 80 + 40; // 40~120px
             return {{
                 x: WIDTH / 2 + Math.cos(angle) * radius,
                 y: HEIGHT / 2 + Math.sin(angle) * radius,
-                size: Math.random() * 1 + 1 // 1~2px
+                size: Math.random() * 1 + 1
             }};
         }} else {{
             return {{
@@ -84,12 +85,12 @@ try {{
         // 아인슈타인 반경
         const theta_E = Math.sqrt((4 * G * M / (c * c)) * (D_LS / (D_L * D_S))) * 1e12;
         // 렌즈 방정식
-        const theta = r / 100; // 픽셀 단위 정규화
-        const beta = Math.abs(theta - (theta_E * theta_E) / (theta || 0.01)); // 0 나누기 방지
+        const theta = r / 100;
+        const beta = Math.abs(theta - (theta_E * theta_E) / (theta || 0.01));
         const angle = Math.atan2(dy, dx);
         // 왜곡된 위치
-        const newX = lensX + Math.cos(angle) * beta * 120;
-        const newY = lensY + Math.sin(angle) * beta * 120;
+        const newX = lensX + Math.cos(angle) * beta * 100;
+        const newY = lensY + Math.sin(angle) * beta * 100;
         // 캔버스 내로 좌표 제한
         const clampedX = Math.max(0, Math.min(newX, WIDTH));
         const clampedY = Math.max(0, Math.min(newY, HEIGHT));
@@ -118,7 +119,7 @@ try {{
         }});
         
         // 디버깅 정보 표시
-        document.getElementById('debug-info').innerText = `Lens Position: (${{lensPos.x.toFixed(2)}}, ${{lensPos.y.toFixed(2)}}), Mass: {mass_scale}x10^12 M☉, Stars: ${stars.length}`;
+        document.getElementById('debug-info').innerText = `Lens Position: (${{lensPos.x.toFixed(2)}}, ${{lensPos.y.toFixed(2)}}), Mass: ${{MASS_SCALE.toFixed(1)}}x10^12 M☉, Stars: ${{stars.length}}`;
         
         requestAnimationFrame(draw);
     }}
@@ -138,7 +139,6 @@ components.html(html_code, height=700, width=850)
 # 대체 콘텐츠
 st.markdown("""
 ### 시뮬레이션 안내
-마우스를 움직여 노란색 원(질량체)을 조작하고, 슬라이더로 질량을 조절하세요. 흰색 별들이 아인슈타인 링/아크 형태로 왜곡됩니다.
-- 별은 300개로, 일부는 질량체 주변에 링 형태로 배치됩니다.
+마우스를 움직여 노란색 원(질량체)을 조작하고, 슬라이더로 질량을 조절하세요. 300개의 흰색 별들이 아인슈타인 링/아크 형태로 왜곡됩니다.
 만약 왜곡이 보이지 않으면, 브라우저 콘솔(F12)을 열어 좌표와 Beta 값을 확인하세요.
 """)
