@@ -5,7 +5,7 @@ from matplotlib.patches import Circle
 from matplotlib.collections import LineCollection
 
 def calculate_deflection(x, y, bh_x, bh_y, mass, intensity):
-    """중력에 의한 빛의 휨 계산 (반대 방향으로 휨)"""
+    """중력에 의한 빛의 휨 계산 (반대 방향으로 휨, 더 강한 왜곡)"""
     dx = bh_x - x
     dy = bh_y - y
     distance_sq = dx**2 + dy**2
@@ -14,7 +14,7 @@ def calculate_deflection(x, y, bh_x, bh_y, mass, intensity):
     if distance < mass * 0.6:  # 슈바르츠실트 반경 내부
         return 0, 0
     
-    deflection = intensity * mass / (distance_sq + 1e-6)  # 0으로 나누기 방지
+    deflection = 5 * intensity * mass / (distance_sq + 1e-6)  # 더 강한 왜곡을 위해 5배 스케일링
     return -dx * deflection, -dy * deflection  # 반대 방향으로 휨
 
 def generate_light_ray(start_x, start_y, width, height, bh_x, bh_y, mass, intensity, steps=150):
@@ -61,14 +61,14 @@ def main():
     st.title("🌠 블랙홀 중력 렌즈 효과 시뮬레이터")
     st.markdown("""
     이 시뮬레이션은 블랙홀 주변의 빛 경로가 반대 방향으로 휘는 가상의 효과를 보여줍니다. 
-    빛이 블랙홀을 피해 바깥쪽으로 휘어지는 모습을 관찰해보세요.
+    빛이 블랙홀을 피해 바깥쪽으로 강하게 휘어지는 모습을 관찰해보세요.
     """)
     
     # 컨트롤 패널
     with st.sidebar:
         st.header("제어판")
         mass = st.slider("블랙홀 질량", 30, 150, 80, help="질량이 클수록 휨 효과가 강해집니다")
-        intensity = st.slider("왜곡 강도", 0.5, 5.0, 1.5, 0.1, help="빛의 휨 강도를 조절합니다")
+        intensity = st.slider("왜곡 강도", 0.5, 10.0, 2.0, 0.1, help="빛의 휨 강도를 조절합니다")
         ray_count = st.slider("광선 개수", 5, 30, 12, help="표시할 빛의 경로 수")
         show_grid = st.checkbox("시공간 그리드 표시", value=True)
         show_photon = st.checkbox("광자 구 표시", value=True)
@@ -84,7 +84,7 @@ def main():
         st.markdown("---")
         if st.button("기본값으로 초기화"):
             st.session_state.mass = 80
-            st.session_state.intensity = 1.5
+            st.session_state.intensity = 2.0
             st.session_state.ray_count = 12
             st.session_state.bh_x = 400
             st.session_state.bh_y = 300
